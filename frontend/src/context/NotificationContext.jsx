@@ -1,0 +1,65 @@
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { initSocket, disconnectSocket } from '../utils/socket.js'
+import { notificationService } from '../services/notificationService.js'
+import { useAuth } from './AuthContext.jsx'
+import { demoNotifications } from '../utils/demoData.js'
+
+const NotificationContext = createContext(null)
+
+export const useNotification = () => {
+  const context = useContext(NotificationContext)
+  if (!context) throw new Error('useNotification must be used within NotificationProvider')
+  return context
+}
+
+export const NotificationProvider = ({ children }) => {
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState([])
+  const socketRef = useRef(null)
+  const DEMO = import.meta.env.VITE_DEMO_MODE === 'true'
+
+  useEffect(() => {
+    if (!user) {
+      disconnectSocket()
+      setNotifications([])
+      return
+    }
+    if (DEMO) {
+      setNotifications(demoNotifications)
+      return () => {}
+    }
+    const token = localStorage.getItem('token')
+    const socket = initSocket(token)
+    socketRef.current = socket
+    socket.connect()
+    socket.on('notification', (payload) => setNotifications((prev) => [payload, ...prev]))
+    ;(async () => {
+      try {
+        const data = await notificationService.getNotifications()
+        setNotifications(data.notifications || data || [])
+      } catch (_) {}
+    })()
+    return () => {
+      if (socket) {
+        socket.off('notification')
+        disconnectSocket()
+      }
+    }
+  }, [user])
+
+  const markAsRead = async (id) => {
+    try {
+      if (DEMO) {
+        setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)))
+        return
+      }
+      await notificationService.markAsRead(id)
+      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)))
+    } catch (_) {}
+  }
+
+  const value = { notifications, markAsRead }
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
+}
+
+export default NotificationContext
