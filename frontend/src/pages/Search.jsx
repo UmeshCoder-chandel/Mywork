@@ -25,7 +25,7 @@ const Search = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold gradient-text mb-6">Search</h1>
+      <h1 className="text-xl font-bold gradient-text mb-6">Search</h1>
       <form onSubmit={handleSearch} className="mb-6">
         <div className="relative">
           <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -36,7 +36,7 @@ const Search = () => {
               if (!e.target.value.trim()) setResults([])
             }}
             placeholder="Search users..."
-            className="w-full pl-12 pr-4 py-3.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400"
+            className="w-full pl-12 pr-4 py-3.5 border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400"
           />
         </div>
       </form>

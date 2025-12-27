@@ -37,18 +37,20 @@ const Header = () => {
     <header className="sticky top-0 z-50 glass border-b border-white/30 shadow-sm">
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="font-bold text-2xl gradient-text hover:scale-105 transition-transform">
-          iWorkSocial
+          Yutosa
+          {/* UMe */}
+          {/* YuMe */}
         </Link>
         <div className="flex items-center gap-3 flex-1 justify-end max-w-md">
           <form onSubmit={handleSearch} className="relative flex-1">
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onFocus={() => { if (results.length) setOpen(true) }}
                 placeholder="Search users..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl glass border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-sm placeholder:text-gray-400"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 text-sm placeholder:text-gray-400"
               />
               {q && (
                 <button

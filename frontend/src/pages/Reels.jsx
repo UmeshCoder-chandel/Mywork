@@ -51,7 +51,7 @@ const Reels = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold gradient-text mb-6">Reels</h1>
+      <h1 className="text-xl font-bold gradient-text mb-6">Reels</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass rounded-2xl shadow-lg border border-white/30 overflow-hidden">

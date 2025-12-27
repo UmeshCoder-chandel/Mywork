@@ -100,7 +100,7 @@ const Feed = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold gradient-text">Your Feed</h1>
+        <h1 className="text-xl font-bold gradient-text">Your Feed</h1>
         <button
           onClick={fetchPosts}
           className="p-2 rounded-xl glass border border-white/30 hover:bg-white/50 transition-all hover:scale-105"

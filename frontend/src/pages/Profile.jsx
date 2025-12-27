@@ -27,7 +27,7 @@ const Profile = () => {
   const isOwnProfile = !userId || userId === user?._id
 
   useEffect(() => {
-    ;(async () => {
+    ; (async () => {
       try {
         const targetId = userId || user?._id
         if (!targetId) {
@@ -207,8 +207,8 @@ const Profile = () => {
                 }}
               />
             ) : null}
-            <div 
-              className={`w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-4xl shadow-2xl ${profile.profileImage ? 'hidden' : ''}`}
+            <div
+              className={`w-32 h-32 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-200 flex items-center justify-center text-white font-bold text-4xl shadow-2xl ${profile.profileImage ? 'hidden' : ''}`}
             >
               {profile.name?.charAt(0).toUpperCase() || 'U'}
             </div>
@@ -237,12 +237,12 @@ const Profile = () => {
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   placeholder="Name"
-                  className="w-full px-4 py-2.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-lg font-semibold"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-lg font-semibold"
                 />
                 <select
                   value={editForm.profession || ''}
                   onChange={(e) => setEditForm({ ...editForm, profession: e.target.value })}
-                  className="w-full px-4 py-2.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  className="w-full px-4 py-2.5   border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                 >
                   <option value="">Select Profession</option>
                   <option value="Plumber">Plumber</option>
@@ -260,14 +260,14 @@ const Profile = () => {
                   value={editForm.location}
                   onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
                   placeholder="Location"
-                  className="w-full px-4 py-2.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  className="w-full px-4 py-2.5   border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                 />
                 <textarea
                   value={editForm.bio}
                   onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
                   placeholder="Bio"
                   rows={3}
-                  className="w-full px-4 py-2.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none"
+                  className="w-full px-4 py-2.5   border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none"
                 />
                 <div className="flex gap-2 justify-center sm:justify-start">
                   <button
@@ -290,7 +290,7 @@ const Profile = () => {
                   <button
                     onClick={handleCancelEdit}
                     disabled={saving}
-                    className="px-6 py-2.5 glass border border-white/30 text-gray-700 rounded-xl hover:bg-white/50 transition-all font-medium flex items-center gap-2"
+                    className="px-6 py-2.5   border border-gray-200 text-gray-700 rounded-xl hover:bg-white/50 transition-all font-medium flex items-center gap-2"
                   >
                     <FiX className="w-4 h-4" />
                     <span>Cancel</span>
@@ -299,13 +299,13 @@ const Profile = () => {
               </div>
             ) : (
               <>
-                <h2 className="text-3xl font-bold gradient-text mb-2">{profile.name}</h2>
+                <h2 className="text-3xl font-bold gradient-text mt-2 mb-2">{profile.name}</h2>
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-600 mb-4">
                   <FiBriefcase className="w-4 h-4" />
-                  <p className="font-medium">{profile.profession || 'Professional'}</p>
+                  <p className="text-sm font-medium">{profile.profession || 'Professional'}</p>
                 </div>
                 {profile.bio && (
-                  <p className="text-gray-600 mb-4 text-sm">{profile.bio}</p>
+                  <p className="text-gray-500 mb-2 text-sm">{profile.bio || 'Heyy'}</p>
                 )}
                 {!isOwnProfile && (
                   <div className="flex gap-3 justify-center sm:justify-start">
@@ -338,7 +338,7 @@ const Profile = () => {
                 {isOwnProfile && (
                   <button
                     onClick={handleEditClick}
-                    className="px-6 py-2.5 gradient-primary text-white rounded-xl hover:shadow-glow transition-all font-medium flex items-center gap-2 mx-auto sm:mx-0"
+                    className="px-6 py-2.5 border border-gray-200 rounded-full text-sm text-black/80 hover:shadow-glow transition-all font-medium flex items-center gap-2 mx-auto sm:mx-0"
                   >
                     <FiEdit2 className="w-4 h-4" />
                     <span>Edit Profile</span>
@@ -352,19 +352,19 @@ const Profile = () => {
         {!isEditing && (
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {profile.email && (
-              <div className="flex items-center gap-3 p-3 glass rounded-xl border border-white/20">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200">
                 <FiMail className="w-5 h-5 text-blue-600" />
                 <span className="text-gray-700 text-sm">{profile.email}</span>
               </div>
             )}
             {profile.phone && (
-              <div className="flex items-center gap-3 p-3 glass rounded-xl border border-white/20">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200">
                 <FiPhone className="w-5 h-5 text-blue-600" />
                 <span className="text-gray-700 text-sm">{profile.phone}</span>
               </div>
             )}
             {profile.location && (
-              <div className="flex items-center gap-3 p-3 glass rounded-xl border border-white/20">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200">
                 <FiMapPin className="w-5 h-5 text-blue-600" />
                 <span className="text-gray-700 text-sm">{profile.location}</span>
               </div>

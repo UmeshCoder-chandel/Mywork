@@ -75,7 +75,7 @@ const PostCard = ({ post, onUpdate }) => {
             to={`/profile/${post.user?._id || post.user}`} 
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-200 flex items-center justify-center text-white font-bold text-lg shadow-md">
               {post.user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div>
