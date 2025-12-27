@@ -3,6 +3,7 @@ import Comment from "../models/Comment.js";
 import Follow from "../models/Follow.js";
 import Notification from "../models/Notification.js";
 import { buildFileUrl } from "../services/uploadService.js";
+import cloudinaryService from "../services/cloudinaryService.js";
 
 export const createPost = async (req, res) => {
   try {
@@ -14,11 +15,38 @@ export const createPost = async (req, res) => {
       return res.status(400).json({ message: "Caption or media is required" });
     }
 
-    const media = (files || []).map((f) => {
-      const url = buildFileUrl(f.filename);
-      const type = f.mimetype && f.mimetype.startsWith("video") ? "video" : "image";
-      return { url, type, thumbnail: null };
-    });
+    // Upload incoming file buffers to Cloudinary (image/video). We use memoryStorage so files have a .buffer
+    const media = [];
+    if (files && files.length > 0) {
+      for (const f of files) {
+        try {
+          const isVideo = f.mimetype && f.mimetype.startsWith("video");
+          const resourceType = isVideo ? "video" : "image";
+          const opts = {
+            folder: process.env.CLOUDINARY_FOLDER || 'worksocial/posts',
+            resource_type: resourceType,
+            public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+          };
+          if (isVideo) {
+            // generate a thumbnail via eager transformation
+            opts.eager = [{ width: 600, height: 400, crop: 'fill', format: 'jpg' }];
+            opts.eager_async = false;
+          }
+
+          const result = await cloudinaryService.uploadBuffer(f.buffer, opts);
+          const url = result.secure_url || result.url;
+          const thumbnail = (result.eager && result.eager[0] && result.eager[0].secure_url) || url;
+          media.push({ url, type: resourceType, thumbnail, width: result.width, height: result.height, public_id: result.public_id });
+        } catch (err) {
+          console.error('Cloudinary upload failed:', err);
+          return res.status(500).json({ message: 'Failed to upload media' });
+        }
+      }
+    } else {
+      // keep backward compatibility if files were previously referenced by filename
+      // (rare if using memoryStorage)
+      // no files but maybe legacy image/video fields
+    }
 
     let parsedLocation = undefined;
     if (location) {
@@ -100,6 +128,22 @@ export const deletePost = async (req, res) => {
     if (String(post.user) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not allowed" });
     }
+
+    // delete remote media from Cloudinary if public_id exists
+    if (Array.isArray(post.media)) {
+      for (const m of post.media) {
+        if (m.public_id) {
+          try {
+            const resourceType = m.type === 'video' ? 'video' : 'image';
+            await cloudinaryService.deleteByPublicId(m.public_id, resourceType);
+          } catch (e) {
+            // log and continue
+            console.warn('Failed to delete cloud asset', m.public_id, e.message);
+          }
+        }
+      }
+    }
+
     await Comment.deleteMany({ post: post._id });
     await post.deleteOne();
     res.json({ message: "Deleted" });

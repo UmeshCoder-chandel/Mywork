@@ -12,16 +12,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${unique}${ext}`);
-  },
-});
+// Use memoryStorage so we can upload buffers to Cloudinary (or other remote storage)
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req, file, cb) => {
   if (file.mimetype && (file.mimetype.startsWith("image") || file.mimetype.startsWith("video"))) {
@@ -38,5 +30,7 @@ export const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB per file
   },
 });
+
+// kept for backward compatibility if some paths still use local path
 export const buildFileUrl = (filename) => `/uploads/${filename}`;
 
