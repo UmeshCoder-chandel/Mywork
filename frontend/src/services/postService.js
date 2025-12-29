@@ -34,6 +34,10 @@ export const postService = {
   getComments: async (postId) => {
     const response = await api.get(`/social/posts/${postId}/comments`)
     return response.data
+  },
+  getReels: async (page = 1) => {
+    const response = await api.get('/social/posts/reels', { params: { page } })
+    return response.data
   }
 }
 

@@ -290,3 +290,21 @@ export const postsByUser = async (req, res) => {
   }
 };
 
+export const getReels = async (req, res) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = 10;
+    // Find posts that have at least one video in the media array
+    const posts = await Post.find({
+      "media.type": "video"
+    })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("user", "-password");
+    res.json({ posts, nextPage: posts.length === limit ? page + 1 : null });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

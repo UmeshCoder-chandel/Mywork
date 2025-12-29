@@ -7,6 +7,7 @@ import {
   deletePost,
   feed,
   getPost,
+  getReels,
   likePost,
   listComments,
   postsByUser,
@@ -21,6 +22,7 @@ const router = express.Router();
 router.use(express.json());
 
 router.get("/feed", auth, feed);
+router.get("/reels", auth, getReels);
 router.get("/user/:userId", auth, postsByUser);
 // Public search & filter (put before :id route)
 router.get("/search", searchPosts);
