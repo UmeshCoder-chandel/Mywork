@@ -37,9 +37,9 @@ const Login = () => {
 
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!googleClientId) {
-      console.error('VITE_GOOGLE_CLIENT_ID is not set')
-      setError('Google login is not configured')
+    if (!googleClientId || googleClientId === 'your_google_client_id_here' || googleClientId.includes('your_')) {
+      console.error('VITE_GOOGLE_CLIENT_ID is not set or is using placeholder value')
+      setError('Google login is not configured. Please set VITE_GOOGLE_CLIENT_ID in frontend/.env file with your Google OAuth Client ID.')
       return
     }
 
@@ -179,8 +179,12 @@ const Login = () => {
               <div id="googleBtn" className="flex-1"></div>
               <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline ml-4">Forgot password?</Link>
             </div>
-            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-              <p className="text-xs text-yellow-600 text-center">Google login is not configured</p>
+            {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID === 'your_google_client_id_here' || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your_')) && (
+              <div className="text-xs text-yellow-600 text-center space-y-1">
+                <p className="font-semibold">Google login is not configured</p>
+                <p className="text-xs">Get your Client ID from: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></p>
+                <p className="text-xs">Then update frontend/.env and backend/.env files</p>
+              </div>
             )}
           </div>
 

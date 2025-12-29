@@ -47,9 +47,9 @@ const Signup = () => {
 
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!googleClientId) {
-      console.error('VITE_GOOGLE_CLIENT_ID is not set')
-      setError('Google signup is not configured')
+    if (!googleClientId || googleClientId === 'your_google_client_id_here' || googleClientId.includes('your_')) {
+      console.error('VITE_GOOGLE_CLIENT_ID is not set or is using placeholder value')
+      setError('Google signup is not configured. Please set VITE_GOOGLE_CLIENT_ID in frontend/.env file with your Google OAuth Client ID.')
       return
     }
 
@@ -207,8 +207,12 @@ const Signup = () => {
 
           <div className="mt-4 flex flex-col items-center gap-2">
             <div id="googleSignupBtn"></div>
-            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-              <p className="text-xs text-yellow-600 text-center">Google signup is not configured</p>
+            {(!import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID === 'your_google_client_id_here' || import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your_')) && (
+              <div className="text-xs text-yellow-600 text-center space-y-1">
+                <p className="font-semibold">Google signup is not configured</p>
+                <p className="text-xs">Get your Client ID from: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></p>
+                <p className="text-xs">Then update frontend/.env and backend/.env files</p>
+              </div>
             )}
           </div>
 
