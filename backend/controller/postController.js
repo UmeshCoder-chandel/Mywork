@@ -128,22 +128,6 @@ export const deletePost = async (req, res) => {
     if (String(post.user) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not allowed" });
     }
-
-    // delete remote media from Cloudinary if public_id exists
-    if (Array.isArray(post.media)) {
-      for (const m of post.media) {
-        if (m.public_id) {
-          try {
-            const resourceType = m.type === 'video' ? 'video' : 'image';
-            await cloudinaryService.deleteByPublicId(m.public_id, resourceType);
-          } catch (e) {
-            // log and continue
-            console.warn('Failed to delete cloud asset', m.public_id, e.message);
-          }
-        }
-      }
-    }
-
     await Comment.deleteMany({ post: post._id });
     await post.deleteOne();
     res.json({ message: "Deleted" });
