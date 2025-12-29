@@ -71,9 +71,12 @@ export const googleLogin = async (req, res) => {
       return res.status(400).json({ message: 'idToken required' });
     }
     
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      console.error('GOOGLE_CLIENT_ID is not set in environment variables');
-      return res.status(500).json({ message: 'Google authentication not configured' });
+    if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'your_google_client_id_here' || process.env.GOOGLE_CLIENT_ID.includes('your_')) {
+      console.error('GOOGLE_CLIENT_ID is not set or is using placeholder value');
+      return res.status(500).json({ 
+        message: 'Google authentication not configured on server',
+        hint: 'Please set GOOGLE_CLIENT_ID environment variable on your hosting platform (e.g., Render, Heroku, etc.)'
+      });
     }
     
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -128,9 +131,15 @@ export const googleLogin = async (req, res) => {
     });
   } catch (error) {
     console.error('Google login error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({ 
       message: error.message || 'Google login failed',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      hint: 'Check server logs for more details. Ensure GOOGLE_CLIENT_ID is set correctly on your hosting platform.'
     });
   }
 };

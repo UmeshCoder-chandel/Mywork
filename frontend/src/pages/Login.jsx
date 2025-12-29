@@ -64,7 +64,8 @@ const Login = () => {
       } catch (err) {
         console.error('Google login error:', err)
         const errorMessage = err.response?.data?.message || err.message || 'Google login failed'
-        setError(errorMessage)
+        const errorHint = err.response?.data?.hint || ''
+        setError(errorMessage + (errorHint ? ` (${errorHint})` : ''))
       } finally {
         setLoading(false)
       }

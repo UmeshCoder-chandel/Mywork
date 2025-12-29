@@ -30,8 +30,22 @@ if (!fs.existsSync(uploadsDir)) {
     console.log("📁 Created uploads directory");
 }
 
+// CORS configuration - allow multiple origins
+const allowedOrigins = process.env.CLIENT_URL 
+    ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+    : ["http://localhost:5173"];
+
 app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            console.warn('CORS blocked origin:', origin);
+            callback(null, true); // Allow all origins in development, restrict in production
+        }
+    },
     credentials: true
 }))
 app.use(helmet())

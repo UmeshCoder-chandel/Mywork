@@ -75,7 +75,8 @@ const Signup = () => {
       } catch (err) {
         console.error('Google signup error:', err)
         const errorMessage = err.response?.data?.message || err.message || 'Google signup failed'
-        setError(errorMessage)
+        const errorHint = err.response?.data?.hint || ''
+        setError(errorMessage + (errorHint ? ` (${errorHint})` : ''))
       } finally {
         setLoading(false)
       }
