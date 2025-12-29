@@ -66,6 +66,10 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user)
         return { success: true }
       }
+      if (data.message) {
+        // Email verification flow: signup succeeded but requires email verification
+        return { success: true, needsEmailVerification: true, message: data.message }
+      }
       return { success: false, error: 'No token received' }
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Signup failed' }

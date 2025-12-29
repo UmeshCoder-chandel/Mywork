@@ -34,6 +34,22 @@ export const userService = {
   getSuggestions: async () => {
     const response = await api.get('/social/users/suggestions')
     return response.data
+  },
+  requestPhoneNumber: async (userId) => {
+    const response = await api.post(`/social/users/${userId}/phone/request`)
+    return response.data
+  },
+  getPhoneRequestStatus: async (userId) => {
+    const response = await api.get(`/social/users/${userId}/phone/status`)
+    return response.data
+  },
+  approvePhoneRequest: async (requestId) => {
+    const response = await api.post(`/social/users/phone-requests/${requestId}/approve`)
+    return response.data
+  },
+  denyPhoneRequest: async (requestId) => {
+    const response = await api.post(`/social/users/phone-requests/${requestId}/deny`)
+    return response.data
   }
 }
 

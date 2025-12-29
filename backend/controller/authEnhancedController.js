@@ -22,28 +22,43 @@ const signToken = (userId) =>
 
 export const register = async (req, res) => {
   try {
-    const { name, email, phone, password, profession } = req.body;
+    const { name, email, password, profession } = req.body;
 
-    if (!email && !phone) {
-      return res.status(400).json({ message: "Email or phone is required" });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
-    const existing = await User.findOne({
-      $or: [{ email }, { phone }],
-    });
+    const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Account already exists" });
     }
+
     const hashed = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     const user = await User.create({
       name,
       email,
-      phone,
       password: hashed,
       profession,
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
-    const token = signToken(user._id);
-    res.cookie("access_token", token, cookieOptions);
-    res.status(201).json({ user, token });
+
+    try {
+      const verifyUrl = `${process.env.FRONTEND_URL || ''}/api/social/auth/verify-email/${verificationToken}`;
+      const html = `<p>Welcome to iWorkSocial, ${name || ''}!</p>
+        <p>Please verify your email by clicking the link below:</p>
+        <p><a href="${verifyUrl}">Verify Email</a></p>
+        <p>If you did not create this account, you can ignore this email.</p>`;
+      await sendEmail({ to: email, subject: 'Verify your email', html });
+    } catch (e) {
+      // If email fails, user still exists but not verified
+    }
+
+    res.status(201).json({
+      message: "Registration successful. Please check your email to verify your account.",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -82,10 +97,16 @@ export const loginEnhanced = async (req, res) => {
     const { identifier, password } = req.body;
     const user = await User.findOne({
       $or: [{ email: identifier }, { phone: identifier }],
-    }).select("+password");
+    }).select("+password +emailVerificationToken +emailVerificationExpires +emailVerified");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    // If logging in with email, require verified email
+    if (identifier.includes('@') && !user.emailVerified) {
+      return res.status(403).json({ message: "Please verify your email before logging in." });
+    }
+
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -126,6 +147,35 @@ export const sendOtp = async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).send('<h2>Invalid verification link</h2>');
+    }
+
+    const user = await User.findOne({ emailVerificationToken: token }).select(
+      '+emailVerificationToken +emailVerificationExpires'
+    );
+    if (!user) {
+      return res.status(400).send('<h2>Invalid or expired verification link</h2>');
+    }
+
+    if (user.emailVerificationExpires && user.emailVerificationExpires.getTime() < Date.now()) {
+      return res.status(400).send('<h2>Verification link has expired</h2>');
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    return res.send('<h2>Email verified successfully. You can now close this window and log in.</h2>');
+  } catch (error) {
+    return res.status(500).send('<h2>Server error while verifying email.</h2>');
   }
 };
 
@@ -190,12 +240,13 @@ export const resetPassword = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const updates = (({ name, bio, location, profession, experience }) => ({
+    const updates = (({ name, bio, location, profession, experience, phone }) => ({
       name,
       bio,
       location,
       profession,
       experience,
+      phone,
     }))(req.body);
     const cleaned = Object.fromEntries(
       Object.entries(updates).filter(([, v]) => v !== undefined)

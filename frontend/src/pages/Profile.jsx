@@ -15,7 +15,7 @@ const Profile = () => {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', profession: '', location: '', bio: '' })
+  const [editForm, setEditForm] = useState({ name: '', profession: '', location: '', bio: '', phone: '' })
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [posts, setPosts] = useState([])
@@ -24,6 +24,8 @@ const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false)
   const [showFollowers, setShowFollowers] = useState(false)
   const [showFollowing, setShowFollowing] = useState(false)
+  const [phoneRequestStatus, setPhoneRequestStatus] = useState(null) // 'none', 'pending', 'approved'
+  const [fullPhoneNumber, setFullPhoneNumber] = useState(null) // Store approved phone number
   const isOwnProfile = !userId || userId === user?._id
 
   useEffect(() => {
@@ -42,7 +44,8 @@ const Profile = () => {
             name: found.name || '',
             profession: found.profession || '',
             location: found.location || '',
-            bio: found.bio || ''
+            bio: found.bio || '',
+            phone: found.phone || '',
           })
           // demo posts
           const demoPosts = demoUsers.reduce((acc, u) => acc.concat([]), [])
@@ -58,7 +61,8 @@ const Profile = () => {
             name: profileData.name || '',
             profession: profileData.profession || '',
             location: profileData.location || '',
-            bio: profileData.bio || ''
+            bio: profileData.bio || '',
+            phone: profileData.phone || '',
           })
 
           const postsData = await postService.getPostsByUser(targetId)
@@ -73,6 +77,19 @@ const Profile = () => {
           // is current user following this profile?
           const isFollowingNow = followersData.followers?.some(f => String(f.follower?._id || f.follower) === String(user?._id))
           setIsFollowing(Boolean(isFollowingNow))
+
+          // Check phone request status if viewing another user's profile
+          if (!isOwnProfile && profileData.phone) {
+            try {
+              const phoneStatus = await userService.getPhoneRequestStatus(targetId)
+              setPhoneRequestStatus(phoneStatus.status || 'none')
+              if (phoneStatus.status === 'approved' && phoneStatus.phone) {
+                setFullPhoneNumber(phoneStatus.phone)
+              }
+            } catch (err) {
+              console.error('Failed to check phone request status:', err)
+            }
+          }
         }
       } catch (err) {
         console.error(err)
@@ -80,7 +97,7 @@ const Profile = () => {
         setLoading(false)
       }
     })()
-  }, [userId, user?._id])
+  }, [userId, user?._id, isOwnProfile])
 
   const handleEditClick = () => {
     setIsEditing(true)
@@ -88,7 +105,8 @@ const Profile = () => {
       name: profile.name || '',
       profession: profile.profession || '',
       location: profile.location || '',
-      bio: profile.bio || ''
+      bio: profile.bio || '',
+      phone: profile.phone || '',
     })
   }
 
@@ -98,8 +116,34 @@ const Profile = () => {
       name: profile.name || '',
       profession: profile.profession || '',
       location: profile.location || '',
-      bio: profile.bio || ''
+      bio: profile.bio || '',
+      phone: profile.phone || '',
     })
+  }
+
+  const maskPhoneNumber = (phone) => {
+    if (!phone) return ''
+    if (phone.length <= 5) return phone
+    const last5 = phone.slice(-5)
+    return `****${last5}`
+  }
+
+  const handleRequestPhoneNumber = async () => {
+    if (!profile?._id) return
+    try {
+      const result = await userService.requestPhoneNumber(profile._id)
+      if (result.phone) {
+        // Already approved
+        setFullPhoneNumber(result.phone)
+        setPhoneRequestStatus('approved')
+        toast.success('Phone number retrieved')
+      } else {
+        setPhoneRequestStatus('pending')
+        toast.success('Phone number request sent')
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to request phone number')
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -322,6 +366,13 @@ const Profile = () => {
                   rows={3}
                   className="w-full px-4 py-2.5   border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none"
                 />
+                <input
+                  type="tel"
+                  value={editForm.phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="Phone (optional)"
+                  className="w-full px-4 py-2.5   border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                />
                 <div className="flex gap-2 justify-center sm:justify-start">
                   <button
                     onClick={handleSaveProfile}
@@ -413,7 +464,29 @@ const Profile = () => {
             {profile.phone && (
               <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200">
                 <FiPhone className="w-5 h-5 text-blue-600" />
-                <span className="text-gray-700 text-sm">{profile.phone}</span>
+                {isOwnProfile ? (
+                  <span className="text-gray-700 text-sm">{profile.phone}</span>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1">
+                    {phoneRequestStatus === 'approved' && fullPhoneNumber ? (
+                      <span className="text-gray-700 text-sm">{fullPhoneNumber}</span>
+                    ) : (
+                      <>
+                        <span className="text-gray-700 text-sm">{maskPhoneNumber(profile.phone)}</span>
+                        {phoneRequestStatus === 'pending' ? (
+                          <span className="text-xs text-blue-600 font-medium">Request pending</span>
+                        ) : (
+                          <button
+                            onClick={handleRequestPhoneNumber}
+                            className="text-xs text-blue-600 hover:underline font-medium ml-auto"
+                          >
+                            Request full number
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {profile.location && (

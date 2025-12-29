@@ -13,6 +13,7 @@ import {
   updateAvatar,
   sendOtp,
   verifyOtp,
+  verifyEmail,
 } from "../controller/authEnhancedController.js";
 import { upload } from "../services/uploadService.js";
 
@@ -27,6 +28,7 @@ router.post("/reset-password", resetPassword);
 router.post("/logout", logoutEnhanced);
 router.post("/otp/send", sendOtp);
 router.post("/otp/verify", verifyOtp);
+router.get("/verify-email/:token", verifyEmail);
 router.get("/me", auth, currentUser);
 router.patch("/me", auth, updateProfile);
 router.patch("/password", auth, changePassword);

@@ -62,11 +62,23 @@ const userSchema = new mongoose.Schema(
     },
     otpCode: {
       type: String,
-      select: false
+      select: false,
     },
     otpExpires: {
       type: Date,
-      select: false
+      select: false,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
     },
     resetPasswordToken: {
       type: String,

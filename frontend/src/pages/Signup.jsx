@@ -1,35 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { demoUser, demoCredentials } from '../utils/demoData.js'
 import { authService } from '../services/authService.js'
-import { FiUser, FiMail, FiPhone, FiLock, FiArrowRight, FiSend } from 'react-icons/fi'
+import { FiUser, FiMail, FiLock, FiArrowRight } from 'react-icons/fi'
 
 const Signup = () => {
-  const { signup } = useAuth()
+  const { signup, updateUser } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setInfo('')
     setLoading(true)
-    const res = await signup({ name, email, phone, password })
+    const res = await signup({ name, email, password })
     setLoading(false)
-    if (res.success) navigate('/')
-    else setError(res.error || 'Signup failed')
-  }
-
-  const handleSendOtp = async () => {
-    try {
-      await authService.sendOtp(phone)
-      navigate('/verify-otp', { state: { phone } })
-    } catch (_) {}
+    if (res.success) {
+      if (res.needsEmailVerification) {
+        setInfo(res.message || 'Signup successful. Please check your email to verify your account.')
+      } else {
+        navigate('/')
+      }
+    } else {
+      setError(res.error || 'Signup failed')
+    }
   }
 
   const handleDemoLogin = () => {
@@ -41,9 +42,45 @@ const Signup = () => {
   const handleFillDemo = () => {
     setName(demoUser.name)
     setEmail(demoCredentials.email)
-    setPhone(demoCredentials.phone)
     setPassword(demoCredentials.password)
   }
+
+  useEffect(() => {
+    const handleGoogleResponse = async (resp) => {
+      try {
+        const data = await authService.googleLogin(resp.credential)
+        if (data.token) {
+          localStorage.setItem('token', data.token)
+          localStorage.setItem('user', JSON.stringify(data.user))
+          updateUser(data.user)
+          navigate('/')
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Google signup failed')
+      }
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse
+        })
+        const target = document.getElementById('googleSignupBtn')
+        if (target) {
+          window.google.accounts.id.renderButton(target, { theme: 'outline', size: 'large' })
+        }
+      }
+    }
+    document.body.appendChild(script)
+    return () => {
+      document.body.removeChild(script)
+    }
+  }, [navigate, updateUser])
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
@@ -57,6 +94,12 @@ const Signup = () => {
           {error && (
             <div className="mb-6 glass border border-red-200/50 text-red-700 px-4 py-3 rounded-xl animate-slide-up">
               <p className="text-sm font-medium">{error}</p>
+            </div>
+          )}
+
+          {info && !error && (
+            <div className="mb-6 glass border border-green-200/50 text-green-700 px-4 py-3 rounded-xl animate-slide-up">
+              <p className="text-sm font-medium">{info}</p>
             </div>
           )}
 
@@ -86,29 +129,6 @@ const Signup = () => {
                 className="w-full pl-12 pr-4 py-3.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400"
                 required
               />
-            </div>
-
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <FiPhone className="w-5 h-5" />
-                </div>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Phone"
-                  className="w-full pl-12 pr-4 py-3.5 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400"
-                  required
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleSendOtp}
-                className="px-4 py-3.5 glass border border-white/30 rounded-xl hover:bg-white/50 transition-all flex items-center gap-2 text-sm font-medium"
-              >
-                <FiSend className="w-4 h-4" />
-                <span className="hidden sm:inline">OTP</span>
-              </button>
             </div>
 
             <div className="relative">
@@ -144,6 +164,10 @@ const Signup = () => {
             </button>
           </form>
 
+          <div className="mt-4 flex items-center justify-center">
+            <div id="googleSignupBtn"></div>
+          </div>
+
           {import.meta.env.VITE_DEMO_MODE === 'true' && (
             <div className="mt-6 space-y-3">
               <div className="glass border border-white/30 rounded-xl p-4 text-sm">
@@ -151,9 +175,9 @@ const Signup = () => {
                 <div className="space-y-1 text-gray-600">
                   <div>Name: <span className="font-mono text-xs">{demoUser.name}</span></div>
                   <div>Email: <span className="font-mono text-xs">{demoCredentials.email}</span></div>
-                  <div>Phone: <span className="font-mono text-xs">{demoCredentials.phone}</span></div>
+                  {/* <div>Phone: <span className="font-mono text-xs">{demoCredentials.phone}</span></div> */}
                   <div>Password: <span className="font-mono text-xs">{demoCredentials.password}</span></div>
-                  <div>OTP: <span className="font-mono text-xs">{demoCredentials.otpCode}</span></div>
+                  {/* <div>OTP: <span className="font-mono text-xs">{demoCredentials.otpCode}</span></div> */}
                 </div>
               </div>
               <div className="flex gap-2">
