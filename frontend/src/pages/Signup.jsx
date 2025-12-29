@@ -46,17 +46,37 @@ const Signup = () => {
   }
 
   useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!googleClientId) {
+      console.error('VITE_GOOGLE_CLIENT_ID is not set')
+      setError('Google signup is not configured')
+      return
+    }
+
     const handleGoogleResponse = async (resp) => {
+      if (!resp || !resp.credential) {
+        setError('Google signup failed: No credential received')
+        return
+      }
       try {
+        setError('')
+        setInfo('')
+        setLoading(true)
         const data = await authService.googleLogin(resp.credential)
         if (data.token) {
           localStorage.setItem('token', data.token)
           localStorage.setItem('user', JSON.stringify(data.user))
           updateUser(data.user)
           navigate('/')
+        } else {
+          setError(data.message || 'Google signup failed: No token received')
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Google signup failed')
+        console.error('Google signup error:', err)
+        const errorMessage = err.response?.data?.message || err.message || 'Google signup failed'
+        setError(errorMessage)
+      } finally {
+        setLoading(false)
       }
     }
 
@@ -65,20 +85,41 @@ const Signup = () => {
     script.async = true
     script.defer = true
     script.onload = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: handleGoogleResponse
-        })
-        const target = document.getElementById('googleSignupBtn')
-        if (target) {
-          window.google.accounts.id.renderButton(target, { theme: 'outline', size: 'large' })
+      if (window.google && window.google.accounts) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleResponse
+          })
+          const target = document.getElementById('googleSignupBtn')
+          if (target) {
+            window.google.accounts.id.renderButton(target, { 
+              theme: 'outline', 
+              size: 'large',
+              text: 'signup_with',
+              width: 300
+            })
+          } else {
+            console.error('Google signup button container not found')
+          }
+        } catch (err) {
+          console.error('Google initialization error:', err)
+          setError('Failed to initialize Google signup')
         }
+      } else {
+        console.error('Google Identity Services not loaded')
+        setError('Google signup service failed to load')
       }
+    }
+    script.onerror = () => {
+      console.error('Failed to load Google Identity Services script')
+      setError('Failed to load Google signup service')
     }
     document.body.appendChild(script)
     return () => {
-      document.body.removeChild(script)
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
     }
   }, [navigate, updateUser])
 
@@ -164,8 +205,11 @@ const Signup = () => {
             </button>
           </form>
 
-          <div className="mt-4 flex items-center justify-center">
+          <div className="mt-4 flex flex-col items-center gap-2">
             <div id="googleSignupBtn"></div>
+            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              <p className="text-xs text-yellow-600 text-center">Google signup is not configured</p>
+            )}
           </div>
 
           {import.meta.env.VITE_DEMO_MODE === 'true' && (

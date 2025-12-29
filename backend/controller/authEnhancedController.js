@@ -67,12 +67,40 @@ export const register = async (req, res) => {
 export const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: 'idToken required' });
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken required' });
+    }
+    
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.error('GOOGLE_CLIENT_ID is not set in environment variables');
+      return res.status(500).json({ message: 'Google authentication not configured' });
+    }
+    
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({ 
+        idToken, 
+        audience: process.env.GOOGLE_CLIENT_ID 
+      });
+    } catch (verifyError) {
+      console.error('Google token verification failed:', verifyError.message);
+      return res.status(401).json({ 
+        message: 'Invalid Google token. Please try again.',
+        error: verifyError.message 
+      });
+    }
+    
     const payload = ticket.getPayload();
+    if (!payload) {
+      return res.status(401).json({ message: 'Failed to get user info from Google' });
+    }
+    
     const { email, name, picture } = payload;
-    if (!email) return res.status(400).json({ message: 'Google account has no email' });
+    if (!email) {
+      return res.status(400).json({ message: 'Google account has no email' });
+    }
+    
     let user = await User.findOne({ email });
     if (!user) {
       // create a new user with random password
@@ -82,13 +110,28 @@ export const googleLogin = async (req, res) => {
         email,
         password: await bcrypt.hash(randomPass, 10),
         profileImage: picture || null,
+        emailVerified: true, // Google accounts are already verified
       });
+    } else {
+      // Update emailVerified if user exists but wasn't verified
+      if (!user.emailVerified) {
+        user.emailVerified = true;
+        await user.save();
+      }
     }
+    
     const token = signToken(user._id);
     res.cookie('access_token', token, cookieOptions);
-    res.json({ user: { ...user.toObject(), password: undefined }, token });
+    res.json({ 
+      user: { ...user.toObject(), password: undefined }, 
+      token 
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Google login error:', error);
+    res.status(500).json({ 
+      message: error.message || 'Google login failed',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

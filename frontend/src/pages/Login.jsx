@@ -36,32 +36,81 @@ const Login = () => {
   }
 
   useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!googleClientId) {
+      console.error('VITE_GOOGLE_CLIENT_ID is not set')
+      setError('Google login is not configured')
+      return
+    }
+
     const handleGoogleResponse = async (resp) => {
+      if (!resp || !resp.credential) {
+        setError('Google login failed: No credential received')
+        return
+      }
       try {
+        setError('')
+        setLoading(true)
         const data = await authService.googleLogin(resp.credential)
         if (data.token) {
           localStorage.setItem('token', data.token)
           localStorage.setItem('user', JSON.stringify(data.user))
           updateUser(data.user)
           navigate('/')
+        } else {
+          setError(data.message || 'Google login failed: No token received')
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Google login failed')
+        console.error('Google login error:', err)
+        const errorMessage = err.response?.data?.message || err.message || 'Google login failed'
+        setError(errorMessage)
+      } finally {
+        setLoading(false)
       }
     }
+
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
     script.async = true
     script.defer = true
     script.onload = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({ client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID, callback: handleGoogleResponse })
-        window.google.accounts.id.renderButton(document.getElementById('googleBtn'), { theme: 'outline', size: 'large' })
+      if (window.google && window.google.accounts) {
+        try {
+          window.google.accounts.id.initialize({ 
+            client_id: googleClientId, 
+            callback: handleGoogleResponse 
+          })
+          const buttonContainer = document.getElementById('googleBtn')
+          if (buttonContainer) {
+            window.google.accounts.id.renderButton(buttonContainer, { 
+              theme: 'outline', 
+              size: 'large',
+              text: 'signin_with',
+              width: 300
+            })
+          } else {
+            console.error('Google button container not found')
+          }
+        } catch (err) {
+          console.error('Google initialization error:', err)
+          setError('Failed to initialize Google login')
+        }
+      } else {
+        console.error('Google Identity Services not loaded')
+        setError('Google login service failed to load')
       }
     }
+    script.onerror = () => {
+      console.error('Failed to load Google Identity Services script')
+      setError('Failed to load Google login service')
+    }
     document.body.appendChild(script)
-    return () => { document.body.removeChild(script) }
-  }, [])
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
+    }
+  }, [navigate, updateUser])
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
@@ -125,9 +174,14 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-4 flex items-center justify-between">
-            <div id="googleBtn"></div>
-            <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</Link>
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div id="googleBtn" className="flex-1"></div>
+              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline ml-4">Forgot password?</Link>
+            </div>
+            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              <p className="text-xs text-yellow-600 text-center">Google login is not configured</p>
+            )}
           </div>
 
           {import.meta.env.VITE_DEMO_MODE === 'true' && (
