@@ -14,32 +14,68 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const savedUser = localStorage.getItem('user')
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser))
-        authService.getCurrentUser()
-          .then((data) => {
-            const userData = data.user || data
-            setUser(userData)
-            localStorage.setItem('user', JSON.stringify(userData))
-          })
-          .catch(() => {
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-            setUser(null)
-          })
-          .finally(() => setLoading(false))
-      } catch (_) {
-        localStorage.removeItem('token')
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token')
+      const savedUser = localStorage.getItem('user')
+      
+      if (!token) {
+        // No token, clear everything and stop loading
         localStorage.removeItem('user')
         setUser(null)
         setLoading(false)
+        return
       }
-    } else {
+
+      if (token && savedUser) {
+        try {
+          // Set user from localStorage first for immediate UI update
+          const parsedUser = JSON.parse(savedUser)
+          setUser(parsedUser)
+          
+          // Then verify with server
+          try {
+            const data = await authService.getCurrentUser()
+            const userData = data.user || data
+            if (userData) {
+              setUser(userData)
+              localStorage.setItem('user', JSON.stringify(userData))
+            }
+          } catch (error) {
+            // Token is invalid, clear everything
+            console.log('Token invalid, clearing auth')
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            setUser(null)
+          }
+        } catch (parseError) {
+          // Invalid saved user data, clear everything
+          console.log('Invalid saved user data, clearing auth')
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setUser(null)
+        }
+      } else if (token && !savedUser) {
+        // Have token but no saved user, try to fetch user
+        try {
+          const data = await authService.getCurrentUser()
+          const userData = data.user || data
+          if (userData) {
+            setUser(userData)
+            localStorage.setItem('user', JSON.stringify(userData))
+          } else {
+            localStorage.removeItem('token')
+            setUser(null)
+          }
+        } catch (error) {
+          localStorage.removeItem('token')
+          setUser(null)
+        }
+      }
+      
       setLoading(false)
     }
+
+    checkAuth()
   }, [])
 
   const login = async (credentials) => {

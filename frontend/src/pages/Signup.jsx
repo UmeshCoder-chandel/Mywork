@@ -47,7 +47,7 @@ const Signup = () => {
 
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    console.log('Google Client ID check:', googleClientId ? 'Found' : 'Not found', googleClientId)
+    // console.log('Google Client ID check:', googleClientId ? 'Found' : 'Not found', googleClientId)
     if (!googleClientId || googleClientId === 'your_google_client_id_here' || googleClientId.includes('your_')) {
       console.error('VITE_GOOGLE_CLIENT_ID is not set or is using placeholder value:', googleClientId)
       setError('Google signup is not configured. Run: .\setup-google-auth.ps1 OR manually update frontend/.env with your Google OAuth Client ID from https://console.cloud.google.com/apis/credentials')
