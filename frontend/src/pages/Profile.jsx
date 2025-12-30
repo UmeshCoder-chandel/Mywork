@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { userService } from '../services/userService.js'
 import { authService } from '../services/authService.js'
 import { postService } from '../services/postService.js'
 import { demoUsers } from '../utils/demoData.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { FiBriefcase, FiMail, FiPhone, FiMapPin, FiEdit2, FiX, FiSave, FiCamera } from 'react-icons/fi'
+import { useChat } from '../context/ChatContext.jsx'
+import { FiBriefcase, FiMail, FiPhone, FiMapPin, FiEdit2, FiX, FiSave, FiCamera, FiMessageCircle } from 'react-icons/fi'
 import { toast } from 'react-hot-toast'
 import resolveMediaUrl from '../utils/resolveMediaUrl.js'
+import { chatService } from '../services/chatService.js'
 
 const Profile = () => {
   const { userId } = useParams()
+  const navigate = useNavigate()
   const { user, updateUser } = useAuth()
+  const { openConversation } = useChat()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -210,6 +214,39 @@ const Profile = () => {
     } finally {
       setUploadingAvatar(false)
       e.target.value = '' // Reset input
+    }
+  }
+
+  const handleOpenChat = async (targetUserId) => {
+    if (!targetUserId || String(targetUserId) === String(user?._id)) {
+      toast.error('Cannot chat with yourself')
+      return
+    }
+    
+    try {
+      // Close the followers/following modal
+      setShowFollowers(false)
+      setShowFollowing(false)
+      
+      if (import.meta.env.VITE_DEMO_MODE === 'true') {
+        // In demo mode, navigate to chat list
+        navigate('/chat')
+        toast.success('Opening chat...')
+      } else {
+        // Create or get conversation first to get the conversationId
+        const data = await chatService.createConversation(targetUserId)
+        const conversation = data.conversation || data
+        const conversationId = conversation._id
+        
+        // Open the conversation in chat context (loads messages)
+        await openConversation(conversationId)
+        
+        // Navigate to the chat room
+        navigate(`/chat/${conversationId}`)
+      }
+    } catch (error) {
+      console.error('Failed to open chat:', error)
+      toast.error(error.response?.data?.message || 'Failed to open chat')
     }
   }
 
@@ -437,6 +474,13 @@ const Profile = () => {
                     >
                       {isFollowing ? 'Following' : 'Follow'}
                     </button>
+                    <button
+                      onClick={() => handleOpenChat(profile._id)}
+                      className="px-6 py-2.5 glass border border-white/30 text-gray-900 rounded-xl hover:bg-white/50 hover:shadow-glow transition-all font-medium flex items-center gap-2"
+                    >
+                      <FiMessageCircle className="w-4 h-4" />
+                      <span>Chat</span>
+                    </button>
                   </div>
                 )}
                 {isOwnProfile && (
@@ -552,15 +596,30 @@ const Profile = () => {
               <p className="text-gray-500">No followers yet</p>
             ) : (
               <div className="space-y-2">
-                {followers.map((f) => (
-                  <div key={String(f._id || f.follower?._id)} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">{(f.follower?.name || f.name || 'U').charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div className="font-semibold">{f.follower?.name || f.name}</div>
-                      <div className="text-xs text-gray-500">{f.follower?.profession}</div>
+                {followers.map((f) => {
+                  const followerUserId = f.follower?._id || f.follower || f._id
+                  const followerName = f.follower?.name || f.name
+                  const isCurrentUser = String(followerUserId) === String(user?._id)
+                  
+                  return (
+                    <div 
+                      key={String(f._id || followerUserId)} 
+                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${!isCurrentUser ? 'hover:bg-white/50 cursor-pointer' : ''}`}
+                      onClick={() => !isCurrentUser && handleOpenChat(followerUserId)}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        {followerName?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{followerName}</div>
+                        <div className="text-xs text-gray-500 truncate">{f.follower?.profession || f.profession}</div>
+                      </div>
+                      {!isCurrentUser && (
+                        <FiMessageCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             <div className="mt-3 text-right">
@@ -576,15 +635,30 @@ const Profile = () => {
               <p className="text-gray-500">Not following anyone</p>
             ) : (
               <div className="space-y-2">
-                {following.map((f) => (
-                  <div key={String(f._id || f.following?._id)} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">{(f.following?.name || f.name || 'U').charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div className="font-semibold">{f.following?.name || f.name}</div>
-                      <div className="text-xs text-gray-500">{f.following?.profession}</div>
+                {following.map((f) => {
+                  const followingUserId = f.following?._id || f.following || f._id
+                  const followingName = f.following?.name || f.name
+                  const isCurrentUser = String(followingUserId) === String(user?._id)
+                  
+                  return (
+                    <div 
+                      key={String(f._id || followingUserId)} 
+                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${!isCurrentUser ? 'hover:bg-white/50 cursor-pointer' : ''}`}
+                      onClick={() => !isCurrentUser && handleOpenChat(followingUserId)}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        {followingName?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold truncate">{followingName}</div>
+                        <div className="text-xs text-gray-500 truncate">{f.following?.profession || f.profession}</div>
+                      </div>
+                      {!isCurrentUser && (
+                        <FiMessageCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             <div className="mt-3 text-right">

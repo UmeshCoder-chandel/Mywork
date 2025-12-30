@@ -46,14 +46,28 @@ export const register = async (req, res) => {
     });
 
     try {
-      const verifyUrl = `${process.env.FRONTEND_URL || ''}/api/social/auth/verify-email/${verificationToken}`;
-      const html = `<p>Welcome to iWorkSocial, ${name || ''}!</p>
-        <p>Please verify your email by clicking the link below:</p>
-        <p><a href="${verifyUrl}">Verify Email</a></p>
-        <p>If you did not create this account, you can ignore this email.</p>`;
-      await sendEmail({ to: email, subject: 'Verify your email', html });
+      // Fix: Use backend URL for verification endpoint, not frontend
+      const backendUrl = process.env.BACKEND_URL || process.env.CLIENT_URL?.replace(':5173', ':3000') || 'http://localhost:3000';
+      const verifyUrl = `${backendUrl}/api/social/auth/verify-email/${verificationToken}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #2563eb;">Welcome to iWorkSocial, ${name || 'User'}!</h2>
+          <p>Thank you for signing up. Please verify your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verifyUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">Verify Email Address</a>
+          </div>
+          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+          <p style="color: #2563eb; word-break: break-all; font-size: 12px;">${verifyUrl}</p>
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">If you did not create this account, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 20px;">This link will expire in 24 hours.</p>
+        </div>
+      `;
+      await sendEmail({ to: email, subject: 'Verify your email - iWorkSocial', html });
+      console.log(`✅ Verification email sent to ${email}`);
     } catch (e) {
+      console.error('❌ Failed to send verification email:', e.message);
       // If email fails, user still exists but not verified
+      // Log the error but don't fail registration
     }
 
     res.status(201).json({
@@ -206,18 +220,21 @@ export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
     if (!token) {
-      return res.status(400).send('<h2>Invalid verification link</h2>');
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=invalid_token`);
     }
 
     const user = await User.findOne({ emailVerificationToken: token }).select(
       '+emailVerificationToken +emailVerificationExpires'
     );
     if (!user) {
-      return res.status(400).send('<h2>Invalid or expired verification link</h2>');
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=invalid_or_expired`);
     }
 
     if (user.emailVerificationExpires && user.emailVerificationExpires.getTime() < Date.now()) {
-      return res.status(400).send('<h2>Verification link has expired</h2>');
+      const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=expired`);
     }
 
     user.emailVerified = true;
@@ -225,9 +242,13 @@ export const verifyEmail = async (req, res) => {
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    return res.send('<h2>Email verified successfully. You can now close this window and log in.</h2>');
+    console.log(`✅ Email verified for user: ${user.email}`);
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/login?verified=true`);
   } catch (error) {
-    return res.status(500).send('<h2>Server error while verifying email.</h2>');
+    console.error('❌ Email verification error:', error);
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/login?error=server_error`);
   }
 };
 
@@ -262,9 +283,24 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordToken = token;
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    const html = `<p>You requested a password reset. Click the link below to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`;
-    await sendEmail({ to: user.email, subject: 'Reset your password', html });
+    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2563eb;">Password Reset Request</h2>
+        <p>You requested to reset your password for your iWorkSocial account.</p>
+        <p>Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">Reset Password</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+        <p style="color: #2563eb; word-break: break-all; font-size: 12px;">${resetUrl}</p>
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">If you did not request this password reset, please ignore this email. Your password will remain unchanged.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">This link will expire in 1 hour.</p>
+      </div>
+    `;
+    await sendEmail({ to: user.email, subject: 'Reset your password - iWorkSocial', html });
+    console.log(`✅ Password reset email sent to ${user.email}`);
     res.json({ message: 'Reset email sent' });
   } catch (error) {
     res.status(500).json({ message: error.message });
