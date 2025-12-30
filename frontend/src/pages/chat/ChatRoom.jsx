@@ -3,17 +3,34 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useChat } from '../../context/ChatContext.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { FiSend, FiArrowLeft, FiMoreVertical } from 'react-icons/fi'
+import resolveMediaUrl from '../../utils/resolveMediaUrl.js'
 
 const ChatRoom = () => {
   const { conversationId } = useParams()
   const navigate = useNavigate()
-  const { messages, openConversation, sendMessage, socketRef } = useChat()
+  const { messages, openConversation, sendMessage, socketRef, conversations } = useChat()
   const { user } = useAuth()
   const [text, setText] = useState('')
   const messagesRef = useRef(null)
 
   useEffect(() => { if (conversationId) openConversation(conversationId) }, [conversationId])
   useEffect(() => { if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight }, [messages, conversationId])
+
+  // Get current conversation
+  const currentConversation = conversations.find(c => c._id === conversationId)
+  
+  // Get other participants (excluding current user)
+  const getOtherParticipants = (participants) => {
+    if (!participants || !Array.isArray(participants)) return []
+    return participants.filter(p => {
+      const participantId = p._id || p
+      return String(participantId) !== String(user?._id)
+    })
+  }
+
+  const otherParticipants = currentConversation ? getOtherParticipants(currentConversation.participants) : []
+  const chatWithUser = otherParticipants[0] || null
+  const chatName = chatWithUser?.name || otherParticipants.map(p => p.name).filter(Boolean).join(', ') || 'Chat'
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -47,12 +64,23 @@ const ChatRoom = () => {
           <FiArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
         <div className="flex items-center gap-3 flex-1 px-4">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-            U
+          {chatWithUser?.profileImage ? (
+            <img
+              src={resolveMediaUrl(chatWithUser.profileImage)}
+              alt={chatName}
+              className="w-10 h-10 rounded-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
+            />
+          ) : null}
+          <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold ${chatWithUser?.profileImage ? 'hidden' : ''}`}>
+            {chatName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-gray-900">Chat</p>
-            <p className="text-xs text-gray-500">Online</p>
+            <p className="font-semibold text-gray-900">{chatName}</p>
+            <p className="text-xs text-gray-500">{currentConversation?.typing ? 'Typing...' : 'Online'}</p>
           </div>
         </div>
         <button className="p-2 rounded-xl hover:bg-white/30 transition-all">

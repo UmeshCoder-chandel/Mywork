@@ -18,8 +18,8 @@ api.interceptors.response.use((response) => response, (error) => {
     // Only redirect if not already redirecting and not already on login page
     if (!isRedirecting && !window.location.pathname.includes('/login')) {
       isRedirecting = true
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
       // Use replace to avoid adding to history
       window.location.replace('/login')
     }

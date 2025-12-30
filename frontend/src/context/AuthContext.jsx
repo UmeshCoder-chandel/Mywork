@@ -116,6 +116,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
+    // Navigate to login page after logout
+    window.location.href = '/login'
   }
 
   const updateUser = (userData) => {
