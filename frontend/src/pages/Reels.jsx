@@ -1,55 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiVideo, FiHeart, FiMessageCircle, FiSend, FiMoreVertical, FiPlay, FiPause } from 'react-icons/fi'
+import { FiHeart, FiMessageCircle, FiSend, FiMoreVertical, FiBookmark } from 'react-icons/fi'
 import { FaHeart } from 'react-icons/fa'
 import { demoUsers, demoPosts } from '../utils/demoData.js'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { postService } from '../services/postService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import resolveMediaUrl from '../utils/resolveMediaUrl.js'
 import { toast } from 'react-hot-toast'
 
-const SuggestedUser = ({ user, onToggle }) => {
-  const [following, setFollowing] = useState(false)
-  const toggle = () => {
-    setFollowing((s) => !s)
-    onToggle?.(user)
-  }
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">{user.name?.charAt(0)?.toUpperCase() || 'U'}</div>
-        <div className="text-sm">
-          <div className="font-semibold text-gray-900">{user.name}</div>
-          <div className="text-xs text-gray-500">{user.profession || 'Worker'}</div>
-        </div>
-      </div>
-      <button onClick={toggle} className={`px-3 py-1 text-sm rounded ${following ? 'bg-gray-200 text-gray-700' : 'bg-blue-600 text-white'}`}>
-        {following ? 'Following' : 'Follow'}
-      </button>
-    </div>
-  )
-}
-
-const SuggestedPost = ({ post }) => {
-  return (
-    <Link to={`/profile/${post.user?._id || post.user}`} className="flex items-center gap-3 hover:bg-white/5 p-2 rounded">
-      <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-200 flex items-center justify-center">
-        {post.image ? (
-          <img src={resolveMediaUrl(post.image)} className="w-full h-full object-cover" />
-        ) : post.video ? (
-          <video src={resolveMediaUrl(post.video)} className="w-full h-full object-cover" />
-        ) : null}
-      </div>
-      <div className="text-sm">
-        <div className="font-semibold text-gray-900">{post.user?.name || 'Unknown'}</div>
-        <div className="text-xs text-gray-500">{post.desc || post.description || 'View profile'}</div>
-      </div>
-    </Link>
-  )
-}
-
 const ReelItem = ({ post, isActive, onLike, onComment }) => {
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
   const videoRef = useRef(null)
   const [liked, setLiked] = useState(
     post.likes?.some((likeId) => String(likeId) === String(currentUser?._id)) ||
@@ -58,9 +19,11 @@ const ReelItem = ({ post, isActive, onLike, onComment }) => {
   )
   const [likesCount, setLikesCount] = useState(Array.isArray(post.likes) ? post.likes.length : (post.likes || 0))
   const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState([])
   const [showComments, setShowComments] = useState(false)
+  const [commentsCount, setCommentsCount] = useState(post.comments || 0)
 
   const videoMedia = post.media?.find(m => m.type === 'video') || (post.video ? { url: post.video, type: 'video' } : null)
 
@@ -76,17 +39,11 @@ const ReelItem = ({ post, isActive, onLike, onComment }) => {
     }
   }, [isActive])
 
-  const handlePlayPause = () => {
+  useEffect(() => {
     if (videoRef.current) {
-      if (playing) {
-        videoRef.current.pause()
-        setPlaying(false)
-      } else {
-        videoRef.current.play()
-        setPlaying(true)
-      }
+      videoRef.current.muted = muted
     }
-  }
+  }, [muted])
 
   const handleLike = async () => {
     try {
@@ -110,6 +67,7 @@ const ReelItem = ({ post, isActive, onLike, onComment }) => {
       if (data.comment) {
         setComments([...comments, data.comment])
         setComment('')
+        setCommentsCount(prev => prev + 1)
         if (onComment) onComment()
       }
     } catch (error) {
@@ -135,98 +93,174 @@ const ReelItem = ({ post, isActive, onLike, onComment }) => {
       <video
         ref={videoRef}
         src={resolveMediaUrl(videoMedia.url)}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         loop
-        muted={false}
+        muted={muted}
         playsInline
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
+        onClick={() => setPlaying(!playing)}
       />
       
-      {/* Play/Pause overlay */}
-      <button
-        onClick={handlePlayPause}
-        className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
-      >
-        {!playing && (
-          <div className="w-20 h-20 rounded-full bg-black/50 flex items-center justify-center">
-            <FiPlay className="w-10 h-10 text-white" />
-          </div>
-        )}
-      </button>
-
-      {/* Bottom overlay with info */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-        <div className="flex items-start gap-4">
-          <Link to={`/profile/${post.user?._id || post.user}`} className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-200 flex items-center justify-center text-white font-bold">
+      {/* User info and description at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pb-6">
+        <div className="flex items-start gap-3 mb-3">
+          <Link 
+            to={`/profile/${post.user?._id || post.user}`}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            {post.user?.profileImage ? (
+              <img
+                src={resolveMediaUrl(post.user.profileImage)}
+                alt={post.user?.name}
+                className="w-8 h-8 rounded-full object-cover border-2 border-white"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-200 flex items-center justify-center text-white font-bold text-xs border-2 border-white">
                 {post.user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div>
-                <p className="font-semibold text-white">{post.user?.name || 'Unknown User'}</p>
-                <p className="text-xs text-gray-300">{post.user?.profession || 'Worker'}</p>
-              </div>
-            </div>
-            <p className="text-white text-sm mb-2">{post.desc || post.description}</p>
+            )}
+            <span className="font-semibold text-white text-sm">{post.user?.name || 'Unknown User'}</span>
           </Link>
-          
-          {/* Actions */}
-          <div className="flex flex-col items-center gap-4">
-            <button
-              onClick={handleLike}
-              className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform"
-            >
-              {liked ? (
-                <FaHeart className="w-7 h-7 text-red-500 fill-current" />
-              ) : (
-                <FiHeart className="w-7 h-7" />
-              )}
-              <span className="text-xs font-semibold">{likesCount}</span>
-            </button>
-            <button
-              onClick={() => setShowComments(!showComments)}
-              className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform"
-            >
-              <FiMessageCircle className="w-7 h-7" />
-              <span className="text-xs font-semibold">{post.comments || comments.length}</span>
-            </button>
-            <button className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform">
-              <FiSend className="w-7 h-7" />
-            </button>
-            <button className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform">
-              <FiMoreVertical className="w-7 h-7" />
-            </button>
-          </div>
         </div>
-
-        {/* Comments section */}
-        {showComments && (
-          <div className="mt-4 max-h-40 overflow-y-auto space-y-2">
-            {comments.map((commentItem) => (
-              <div key={commentItem._id} className="flex items-start gap-2 text-white text-sm">
-                <span className="font-semibold">{commentItem.user?.name || 'User'}:</span>
-                <span>{commentItem.text}</span>
-              </div>
-            ))}
-            <form onSubmit={handleComment} className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder:text-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <FiSend className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+        {(post.desc || post.description) && (
+          <p className="text-white text-sm mb-2 line-clamp-2">{post.desc || post.description}</p>
         )}
       </div>
+
+      {/* Actions on the right side */}
+      <div className="absolute right-4 bottom-20 flex flex-col items-center gap-6">
+        <button
+          onClick={handleLike}
+          className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform"
+        >
+          {liked ? (
+            <FaHeart className="w-7 h-7 text-red-500 fill-current" />
+          ) : (
+            <FiHeart className="w-7 h-7" />
+          )}
+          <span className="text-xs font-semibold">{likesCount}</span>
+        </button>
+        
+        <button
+          onClick={() => {
+            setShowComments(!showComments)
+            if (!showComments) loadComments()
+          }}
+          className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform"
+        >
+          <FiMessageCircle className="w-7 h-7" />
+          <span className="text-xs font-semibold">{commentsCount}</span>
+        </button>
+        
+        <button className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform">
+          <FiSend className="w-7 h-7" />
+        </button>
+        
+        <button className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform">
+          <FiBookmark className="w-7 h-7" />
+        </button>
+        
+        <button
+          onClick={() => setMuted(!muted)}
+          className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform"
+        >
+          <div className="w-7 h-7 flex items-center justify-center">
+            {muted ? (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            )}
+          </div>
+        </button>
+        
+        <button className="flex flex-col items-center gap-1 text-white hover:scale-110 transition-transform">
+          <FiMoreVertical className="w-7 h-7" />
+        </button>
+      </div>
+
+      {/* Comments modal */}
+      {showComments && (
+        <div className="absolute inset-0 bg-black/95 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-white/20">
+            <h3 className="text-white font-semibold">Comments</h3>
+            <button
+              onClick={() => setShowComments(false)}
+              className="text-white hover:opacity-70 transition-opacity"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {comments.length === 0 ? (
+              <div className="text-center text-gray-400 mt-8">
+                <p>No comments yet.</p>
+                <p className="text-sm mt-2">Be the first to comment!</p>
+              </div>
+            ) : (
+              comments.map((commentItem) => (
+                <div key={commentItem._id} className="flex items-start gap-3">
+                  {commentItem.user?.profileImage ? (
+                    <img
+                      src={resolveMediaUrl(commentItem.user.profileImage)}
+                      alt={commentItem.user?.name}
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                      {commentItem.user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-white text-sm">
+                      <span className="font-semibold">{commentItem.user?.name || 'User'}</span>
+                      <span className="ml-2">{commentItem.text}</span>
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {new Date(commentItem.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <form onSubmit={handleComment} className="p-4 border-t border-white/20 flex gap-2">
+            {currentUser?.profileImage ? (
+              <img
+                src={resolveMediaUrl(currentUser.profileImage)}
+                alt={currentUser?.name}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-full text-white placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+            <button
+              type="submit"
+              disabled={!comment.trim()}
+              className="px-4 py-2 text-blue-400 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Post
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
@@ -235,13 +269,15 @@ const Reels = () => {
   const [reels, setReels] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [users] = useState(demoUsers.slice(1))
-  const [posts] = useState(demoPosts)
   const containerRef = useRef(null)
-  const reelRefs = useRef([])
+  const hasLoadedRef = useRef(false)
+  const touchStartY = useRef(0)
+  const touchEndY = useRef(0)
 
   useEffect(() => {
-    fetchReels()
+    if (!hasLoadedRef.current) {
+      fetchReels()
+    }
   }, [])
 
   useEffect(() => {
@@ -263,95 +299,113 @@ const Reels = () => {
     }
   }, [reels.length, activeIndex])
 
-  const fetchReels = async () => {
+  // Touch handlers for swipe
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  const handleTouchEnd = (e) => {
+    touchEndY.current = e.changedTouches[0].clientY
+    handleSwipe()
+  }
+
+    const handleSwipe = () => {
+      const diff = touchStartY.current - touchEndY.current
+      const minSwipeDistance = 50
+
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0 && activeIndex < reels.length - 1) {
+          // Swipe up - next reel
+          const nextIndex = activeIndex + 1
+          setActiveIndex(nextIndex)
+          if (containerRef.current) {
+            containerRef.current.scrollTo({
+              top: nextIndex * containerRef.current.clientHeight,
+              behavior: 'smooth'
+            })
+          }
+        } else if (diff < 0 && activeIndex > 0) {
+          // Swipe down - previous reel
+          const prevIndex = activeIndex - 1
+          setActiveIndex(prevIndex)
+          if (containerRef.current) {
+            containerRef.current.scrollTo({
+              top: prevIndex * containerRef.current.clientHeight,
+              behavior: 'smooth'
+            })
+          }
+        }
+      }
+    }
+
+  const fetchReels = async (forceRefresh = false) => {
+    if (hasLoadedRef.current && reels.length > 0 && !forceRefresh) {
+      return
+    }
     try {
       setLoading(true)
       if (import.meta.env.VITE_DEMO_MODE === 'true') {
-        // Filter demo posts to only show videos
         const videoPosts = demoPosts.filter(p => p.video || (p.media && p.media.some(m => m.type === 'video')))
         setReels(videoPosts)
       } else {
         const data = await postService.getReels()
         setReels(data.posts || [])
       }
+      hasLoadedRef.current = true
     } catch (error) {
       console.error('Failed to fetch reels:', error)
       toast.error('Failed to load reels')
+      hasLoadedRef.current = true
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold gradient-text mb-6">Reels</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass rounded-2xl shadow-lg border border-white/30 overflow-hidden">
-          {loading ? (
-            <div className="w-full h-[70vh] bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-400 font-medium">Loading reels...</p>
-              </div>
-            </div>
-          ) : reels.length === 0 ? (
-            <div className="w-full h-[70vh] bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                  <FiVideo className="w-12 h-12 text-gray-400" />
-                </div>
-                <p className="text-gray-400 font-medium text-lg">No reels available</p>
-                <p className="text-gray-500 text-sm mt-2">Check back later for new content</p>
-              </div>
-            </div>
-          ) : (
-            <div
-              ref={containerRef}
-              className="w-full h-[70vh] overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-            >
-              {reels.map((reel, index) => (
-                <div
-                  key={reel._id}
-                  ref={(el) => (reelRefs.current[index] = el)}
-                  className="w-full h-[70vh] snap-start flex-shrink-0"
-                >
-                  <ReelItem
-                    post={reel}
-                    isActive={index === activeIndex}
-                    onLike={fetchReels}
-                    onComment={fetchReels}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="fixed inset-0 bg-black z-50">
+      {loading ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white mx-auto mb-4"></div>
+            <p className="text-white font-medium">Loading reels...</p>
+          </div>
         </div>
-
-        <aside className="glass rounded-2xl shadow-lg border border-white/30 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Suggested</h2>
-            <Link to="/search" className="text-xs text-blue-600">See all</Link>
+      ) : reels.length === 0 ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
+              <svg className="w-12 h-12 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-white font-medium text-lg">No reels available</p>
+            <p className="text-white/60 text-sm mt-2">Check back later for new content</p>
           </div>
-
-          <div className="space-y-3 mb-4">
-            <h3 className="text-xs text-gray-500 uppercase">Suggested follows</h3>
-            {users.map((u) => (
-              <SuggestedUser key={u._id} user={u} />
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xs text-gray-500 uppercase">Suggested for you</h3>
-            {posts.map((p) => (
-              <SuggestedPost key={p._id} post={p} />
-            ))}
-          </div>
-        </aside>
-      </div>
+        </div>
+      ) : (
+        <div
+          ref={containerRef}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+        >
+          {reels.map((reel, index) => (
+            <div
+              key={reel._id}
+              className="w-full h-screen snap-start flex-shrink-0"
+            >
+              <ReelItem
+                post={reel}
+                isActive={index === activeIndex}
+                onLike={fetchReels}
+                onComment={fetchReels}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 export default Reels
-

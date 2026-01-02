@@ -12,8 +12,14 @@ const ChatRoom = () => {
   const { user } = useAuth()
   const [text, setText] = useState('')
   const messagesRef = useRef(null)
+  const loadedConversationIdRef = useRef(null)
 
-  useEffect(() => { if (conversationId) openConversation(conversationId) }, [conversationId])
+  useEffect(() => { 
+    if (conversationId && loadedConversationIdRef.current !== conversationId) {
+      openConversation(conversationId)
+      loadedConversationIdRef.current = conversationId
+    }
+  }, [conversationId])
   useEffect(() => { if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight }, [messages, conversationId])
 
   // Get current conversation

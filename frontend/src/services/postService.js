@@ -38,6 +38,10 @@ export const postService = {
   getReels: async (page = 1) => {
     const response = await api.get('/social/posts/reels', { params: { page } })
     return response.data
+  },
+  searchPosts: async (query) => {
+    const response = await api.get('/social/posts/search', { params: { q: query } })
+    return response.data
   }
 }
 

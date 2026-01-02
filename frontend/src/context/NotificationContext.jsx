@@ -16,16 +16,29 @@ export const NotificationProvider = ({ children }) => {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState([])
   const socketRef = useRef(null)
+  const loadedUserIdRef = useRef(null)
   const DEMO = import.meta.env.VITE_DEMO_MODE === 'true'
 
   useEffect(() => {
     if (!user) {
       disconnectSocket()
       setNotifications([])
+      loadedUserIdRef.current = null
       return
     }
+
+    // If notifications already loaded for this user, skip fetching
+    if (loadedUserIdRef.current === user._id) {
+      // Ensure socket is connected if it exists
+      if (socketRef.current && !socketRef.current.connected) {
+        socketRef.current.connect()
+      }
+      return
+    }
+
     if (DEMO) {
       setNotifications(demoNotifications)
+      loadedUserIdRef.current = user._id
       return () => {}
     }
     const token = localStorage.getItem('token')
@@ -37,7 +50,10 @@ export const NotificationProvider = ({ children }) => {
       try {
         const data = await notificationService.getNotifications()
         setNotifications(data.notifications || data || [])
-      } catch (_) {}
+        loadedUserIdRef.current = user._id
+      } catch (_) {
+        loadedUserIdRef.current = user._id
+      }
     })()
     return () => {
       if (socket) {

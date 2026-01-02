@@ -18,6 +18,7 @@ export const ChatProvider = ({ children }) => {
   const [activeConversation, setActiveConversation] = useState(null)
   const [messages, setMessages] = useState({})
   const socketRef = useRef(null)
+  const loadedUserIdRef = useRef(null)
   const DEMO = import.meta.env.VITE_DEMO_MODE === 'true'
 
   useEffect(() => {
@@ -25,11 +26,23 @@ export const ChatProvider = ({ children }) => {
       disconnectSocket()
       setConversations([])
       setActiveConversation(null)
+      loadedUserIdRef.current = null
       return
     }
+
+    // If conversations already loaded for this user, skip fetching
+    if (loadedUserIdRef.current === user._id) {
+      // Ensure socket is connected if it exists
+      if (socketRef.current && !socketRef.current.connected) {
+        socketRef.current.connect()
+      }
+      return
+    }
+
     if (DEMO) {
       setConversations(demoConversations)
       setMessages(demoMessagesByConversation)
+      loadedUserIdRef.current = user._id
       return () => {}
     }
 
@@ -69,7 +82,10 @@ export const ChatProvider = ({ children }) => {
       try {
         const data = await chatService.getConversations()
         setConversations(data.conversations || data || [])
-      } catch (_) {}
+        loadedUserIdRef.current = user._id
+      } catch (_) {
+        loadedUserIdRef.current = user._id
+      }
     })()
 
     return () => {
@@ -105,6 +121,10 @@ export const ChatProvider = ({ children }) => {
         }
       }
       setActiveConversation(convId)
+      // Only fetch messages if we don't already have them
+      if (messages[convId] && messages[convId].length > 0) {
+        return
+      }
       if (DEMO) {
         setMessages((prev) => ({ ...prev, [convId]: demoMessagesByConversation[convId] || [] }))
       } else {

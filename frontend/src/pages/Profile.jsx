@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { userService } from '../services/userService.js'
 import { authService } from '../services/authService.js'
@@ -31,6 +31,7 @@ const Profile = () => {
   const [phoneRequestStatus, setPhoneRequestStatus] = useState(null) // 'none', 'pending', 'approved'
   const [fullPhoneNumber, setFullPhoneNumber] = useState(null) // Store approved phone number
   const isOwnProfile = !userId || userId === user?._id
+  const loadedProfileIdRef = useRef(null)
 
   useEffect(() => {
     ; (async () => {
@@ -38,8 +39,18 @@ const Profile = () => {
         const targetId = userId || user?._id
         if (!targetId) {
           setProfile(null)
+          loadedProfileIdRef.current = null
+          setLoading(false)
           return
         }
+
+        // If we already loaded this profile, skip fetching
+        if (loadedProfileIdRef.current === targetId) {
+          setLoading(false)
+          return
+        }
+
+        setLoading(true)
 
         if (import.meta.env.VITE_DEMO_MODE === 'true') {
           const found = demoUsers.find(u => u._id === userId) || demoUsers[0]
@@ -95,13 +106,14 @@ const Profile = () => {
             }
           }
         }
+        loadedProfileIdRef.current = targetId
       } catch (err) {
         console.error(err)
       } finally {
         setLoading(false)
       }
     })()
-  }, [userId, user?._id, isOwnProfile])
+  }, [userId, user?._id])
 
   const handleEditClick = () => {
     setIsEditing(true)

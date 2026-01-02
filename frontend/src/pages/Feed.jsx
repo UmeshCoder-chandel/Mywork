@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { postService } from '../services/postService.js'
 import PostCard from '../components/PostCard.jsx'
 import { demoPosts } from '../utils/demoData.js'
@@ -13,10 +13,19 @@ const Feed = () => {
   const [error, setError] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const { user } = useAuth()
+  const hasLoadedRef = useRef(false)
 
-  useEffect(() => { fetchPosts() }, [])
+  useEffect(() => { 
+    if (!hasLoadedRef.current) {
+      fetchPosts()
+    }
+  }, [])
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (forceRefresh = false) => {
+    // If already loaded and not forcing refresh, skip
+    if (hasLoadedRef.current && posts.length > 0 && !forceRefresh) {
+      return
+    }
     try {
       setLoading(true)
       if (import.meta.env.VITE_DEMO_MODE === 'true') {
@@ -26,9 +35,11 @@ const Feed = () => {
         setPosts(data.posts || data || [])
       }
       setError('')
+      hasLoadedRef.current = true
     } catch (_) {
       setPosts(demoPosts)
       setError('')
+      hasLoadedRef.current = true
     } finally {
       setLoading(false)
     }
@@ -87,7 +98,7 @@ const Feed = () => {
           <p className="text-sm">{error}</p>
         </div>
         <button 
-          onClick={fetchPosts} 
+          onClick={() => fetchPosts(true)} 
           className="mt-4 px-6 py-3 gradient-primary text-white rounded-xl hover:shadow-glow transition-all flex items-center gap-2 mx-auto"
         >
           <FiRefreshCw className="w-5 h-5" />
@@ -102,7 +113,7 @@ const Feed = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold gradient-text">Your Feed</h1>
         <button
-          onClick={fetchPosts}
+          onClick={() => fetchPosts(true)}
           className="p-2 rounded-xl glass border border-white/30 hover:bg-white/50 transition-all hover:scale-105"
           title="Refresh feed"
         >
