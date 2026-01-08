@@ -35,6 +35,20 @@ const ChatList = () => {
     return firstOther
   }
 
+  const isUnread = (conv) => {
+    const last = conv.lastMessage
+    if (!last) return false
+    const fromOther = String(last.sender?._id || last.sender) !== String(user?._id)
+    return fromOther && !last.read
+  }
+
+  const formatTime = (iso) => {
+    const d = new Date(iso)
+    const now = new Date()
+    const sameDay = d.toDateString() === now.toDateString()
+    return sameDay ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString()
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold gradient-text mb-6">Messages</h1>
@@ -52,6 +66,7 @@ const ChatList = () => {
             {conversations.map((conv) => {
               const otherUser = getConversationAvatar(conv)
               const conversationName = getConversationName(conv)
+              const unread = isUnread(conv)
               
               return (
                 <Link
@@ -76,16 +91,19 @@ const ChatList = () => {
                         {(otherUser?.name || conversationName || 'U').charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">
+                        <p className={`font-semibold truncate ${unread ? 'text-gray-900' : 'text-gray-800'}`}>
                           {conversationName}
                         </p>
-                        <p className="text-sm text-gray-600 truncate">
+                        <p className={`text-sm truncate ${unread ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                           {conv.lastMessage?.text?.slice(0, 60) || 'No messages yet'}
                         </p>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500 flex-shrink-0">
-                      {conv.updatedAt ? new Date(conv.updatedAt).toLocaleDateString() : ''}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {unread && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
+                      <span className="text-xs text-gray-500">
+                        {conv.updatedAt ? formatTime(conv.updatedAt) : ''}
+                      </span>
                     </div>
                   </div>
                 </Link>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { initSocket, disconnectSocket } from '../utils/socket.js'
 import { notificationService } from '../services/notificationService.js'
 import { useAuth } from './AuthContext.jsx'
@@ -74,7 +74,20 @@ export const NotificationProvider = ({ children }) => {
     } catch (_) {}
   }
 
-  const value = { notifications, markAsRead }
+  const markAllRead = async () => {
+    try {
+      if (DEMO) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+        return
+      }
+      await notificationService.markAllRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch (_) {}
+  }
+
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
+
+  const value = { notifications, unreadCount, markAsRead, markAllRead }
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
 }
 

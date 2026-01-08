@@ -27,7 +27,7 @@ const Feed = () => {
       return
     }
     try {
-      setLoading(true)
+      setLoading(!hasLoadedRef.current)
       if (import.meta.env.VITE_DEMO_MODE === 'true') {
         setPosts(demoPosts)
       } else {

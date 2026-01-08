@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNotification } from '../context/NotificationContext.jsx'
 import { userService } from '../services/userService.js'
 import { FiBell, FiCheck, FiPhone, FiCheckCircle, FiX } from 'react-icons/fi'
@@ -5,7 +6,7 @@ import { toast } from 'react-hot-toast'
 import { useState } from 'react'
 
 const Notifications = () => {
-  const { notifications, markAsRead } = useNotification()
+  const { notifications, markAsRead, markAllRead, unreadCount } = useNotification()
   const [processingRequests, setProcessingRequests] = useState(new Set())
 
   const getNotificationMessage = (notification) => {
@@ -66,6 +67,13 @@ const Notifications = () => {
       })
     }
   }
+
+  useEffect(() => {
+    if (unreadCount > 0) {
+      markAllRead()
+    }
+  }, [unreadCount])
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <h1 className="text-xl font-bold gradient-text mb-6">Notifications</h1>

@@ -50,7 +50,7 @@ const Profile = () => {
           return
         }
 
-        setLoading(true)
+        setLoading(!profile)
 
         if (import.meta.env.VITE_DEMO_MODE === 'true') {
           const found = demoUsers.find(u => u._id === userId) || demoUsers[0]

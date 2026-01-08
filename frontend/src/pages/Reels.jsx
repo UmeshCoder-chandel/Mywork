@@ -531,7 +531,7 @@ const Reels = () => {
 
   const fetchReels = async () => {
     try {
-      setLoading(true)
+      setLoading(reels.length === 0)
       const res = await postService.getReels()
       setReels(res.posts || [])
     } catch {

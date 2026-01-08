@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useChat } from '../../context/ChatContext.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -13,6 +13,7 @@ const ChatRoom = () => {
   const [text, setText] = useState('')
   const messagesRef = useRef(null)
   const loadedConversationIdRef = useRef(null)
+  const [atBottom, setAtBottom] = useState(true)
 
   useEffect(() => { 
     if (conversationId && loadedConversationIdRef.current !== conversationId) {
@@ -20,7 +21,7 @@ const ChatRoom = () => {
       loadedConversationIdRef.current = conversationId
     }
   }, [conversationId])
-  useEffect(() => { if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight }, [messages, conversationId])
+  useEffect(() => { if (messagesRef.current && atBottom) messagesRef.current.scrollTop = messagesRef.current.scrollHeight }, [messages, conversationId, atBottom])
 
   // Get current conversation
   const currentConversation = conversations.find(c => c._id === conversationId)
@@ -58,6 +59,36 @@ const ChatRoom = () => {
   }
 
   const conversationMessages = messages[conversationId] || []
+  const withSeparators = useMemo(() => {
+    const out = []
+    let lastDay = null
+    for (const m of conversationMessages) {
+      const d = new Date(m.createdAt)
+      const dayKey = d.toDateString()
+      if (dayKey !== lastDay) {
+        lastDay = dayKey
+        out.push({ _id: `sep-${dayKey}`, type: 'sep', label: d.toLocaleDateString() })
+      }
+      out.push({ ...m, type: 'msg' })
+    }
+    return out
+  }, [conversationMessages])
+
+  const onScroll = () => {
+    if (!messagesRef.current) return
+    const el = messagesRef.current
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20
+    setAtBottom(nearBottom)
+  }
+
+  const onInputKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (text.trim()) {
+        handleSend(e)
+      }
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -86,7 +117,7 @@ const ChatRoom = () => {
           </div>
           <div>
             <p className="font-semibold text-gray-900">{chatName}</p>
-            <p className="text-xs text-gray-500">{currentConversation?.typing ? 'Typing...' : 'Online'}</p>
+            <p className="text-xs text-gray-500">{currentConversation?.typing ? 'Typing...' : 'Active now'}</p>
           </div>
         </div>
         <button className="p-2 rounded-xl hover:bg-white/30 transition-all">
@@ -96,7 +127,7 @@ const ChatRoom = () => {
 
       {/* Messages Container */}
       <div className="glass rounded-2xl shadow-lg border border-white/30 h-[calc(100vh-280px)] flex flex-col overflow-hidden">
-        <div ref={messagesRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div ref={messagesRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-4">
           {conversationMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -105,7 +136,15 @@ const ChatRoom = () => {
               </div>
             </div>
           ) : (
-            conversationMessages.map((msg) => {
+            withSeparators.map((item) => {
+              if (item.type === 'sep') {
+                return (
+                  <div key={item._id} className="flex justify-center">
+                    <span className="text-xs text-gray-500 px-3 py-1 rounded-full bg-white/50">{item.label}</span>
+                  </div>
+                )
+              }
+              const msg = item
               const isOwn = String(msg.user) === String(user?._id)
               return (
                 <div
@@ -127,9 +166,16 @@ const ChatRoom = () => {
                     >
                       <p className="text-sm leading-relaxed">{msg.text}</p>
                     </div>
-                    <p className={`text-xs text-gray-500 mt-1 px-2 ${isOwn ? 'text-right' : 'text-left'}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : 'justify-start'} px-2 mt-1`}>
+                      <span className="text-xs text-gray-500">
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isOwn && (
+                        <span className={`text-xs ${msg.read ? 'text-blue-600' : 'text-gray-400'}`}>
+                          {msg.read ? '✓✓' : '✓'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -137,14 +183,29 @@ const ChatRoom = () => {
           )}
         </div>
 
+        {!atBottom && (
+          <div className="p-2">
+            <button
+              onClick={() => {
+                if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+                setAtBottom(true)
+              }}
+              className="mx-auto block text-xs px-3 py-1 rounded-full glass border border-white/30 hover:bg-white/50"
+            >
+              New messages
+            </button>
+          </div>
+        )}
+
         {/* Input Area */}
         <form onSubmit={handleSend} className="p-4 border-t border-white/20 flex gap-2">
-          <input
-            type="text"
+          <textarea
+            rows={1}
             value={text}
             onChange={(e) => handleTyping(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-3 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400"
+            onKeyDown={onInputKeyDown}
+            placeholder="Message..."
+            className="flex-1 px-4 py-3 glass border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-gray-400 resize-none"
           />
           <button
             type="submit"
@@ -160,4 +221,3 @@ const ChatRoom = () => {
 }
 
 export default ChatRoom
-
